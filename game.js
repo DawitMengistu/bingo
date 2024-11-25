@@ -84,6 +84,9 @@ const initialNumberData = [
 ];
 
 export default function Game() {
+    const hasMounted = useRef(false);
+
+
     const [numberData, setNumberData] = useState(initialNumberData);
     const [playPause, setPlayPause] = useState(require("./assets/pause.png"));
     const [stopImg, setStopImg] = useState(require("./assets/stop.png"));
@@ -92,20 +95,19 @@ export default function Game() {
     const [ballNum, setBallNum] = useState(0);
     const [CR, setCR] = useState(75);
 
+    const size = useRef(new Animated.Value(0)).current;
+
     const [gameStatus, setGameStatus] = useState(0);
     const [numbers, setNumbers] = useState(() => {
-        const arr = Array.from({ length: 5 }, (_, i) => i + 1);
+        const arr = Array.from({ length: 75 }, (_, i) => i + 1);
         // Fisher-Yates shuffle
         for (let i = arr.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [arr[i], arr[j]] = [arr[j], arr[i]];
         }
-
-        console.log(arr, "<--")
+        console.log(arr)
         return arr; // Initial shuffled array
     });
-
-
 
     const [resultNumbers, setResultNumbers] = useState([1, 2, 3, 4, 5]);
     const currentIndex = useRef(-1);
@@ -199,7 +201,7 @@ export default function Game() {
         else if (item < 61) {
             imageSource = require("./assets/gg.png");
         }
-        else {
+        else if (item < 76) {
             imageSource = require("./assets/gy.png");
 
 
@@ -219,43 +221,13 @@ export default function Game() {
         await playSound(require("./assets/touch.mp3"));
         setGameStatus((prevStatus) => (prevStatus === 0 ? 1 : 0));
     }
-    const size = useRef(new Animated.Value(0)).current; // Animated value for size
+    // Animated value for size
 
     const animateImage = () => {
         // getRandomNumber()
-        const resultNum = getRandomNumber();
-        gameBallRef.current = getImageSource(resultNum);
+        // const resultNum = getRandomNumber();
 
-        // setResultNumbers((prev) => {
-        //     // Remove the first number and add the new resultNum at the end
-        //     if (prev.length >= 5) {
-        //         return [...prev.slice(1), resultNum]; // Remove first element and add new resultNum
-        //     } else {
-        //         return [...prev, resultNum]; // Add new resultNum without removing
-        //     }
-        // });
-
-        setResultNumbers(prev => {
-            const updatedResult = [...prev];
-            updatedResult[currentIndex.current] = resultNum;
-            return updatedResult;
-        });
-        currentIndex.current = (currentIndex.current + 1) % 5;
-
-
-
-        size.setValue(0); // Reset the size to 0 before starting the animation
-        Animated.timing(size, {
-            toValue: 100, // Final size
-            duration: 500, // Duration of animation in milliseconds
-            useNativeDriver: false, // Animating styles
-        }).start();
-
-
-        animations.forEach((_, i) => animateView(i));
-
-
-        setCR(resultNum);
+        setBallNum(prevBallNum => prevBallNum + 1);
 
     };
 
@@ -276,10 +248,9 @@ export default function Game() {
     };
     function resetEverything() {
         setNumberData(initialNumberData); // Reset number data to its initial value
-        setIsVisible(false);
-        setBallNum(0);
         setCR(0);
         setGameStatus(0);
+        setIsVisible(false);
         setNumbers(() => {
             const arr = Array.from({ length: 75 }, (_, i) => i + 1);
             // Fisher-Yates shuffle
@@ -289,23 +260,60 @@ export default function Game() {
             }
             return arr; // Reset shuffled numbers
         });
-        setResultNumbers([1, 2, 3, 4, 5]);
         currentIndex.current = -1;
+        setBallNum(0);
+        setResultNumbers([]);
         // If you have animations, reset their values as well
         animations.forEach((anim, i) => anim.setValue(startingPos * (i + 1)));
     }
 
-    const getRandomNumber = () => {
+    useEffect(() => {
+        if (!hasMounted.current || ballNum == 0) {
+            // Skip the first render
+            hasMounted.current = true;
+            return;
+        }
+
+        gameBallRef.current = getImageSource(numbers[0]);
+
+
+        setResultNumbers(prev => {
+            const updatedResult = [...prev];
+            updatedResult[currentIndex.current] = numbers[0];
+            return updatedResult;
+        });
+        currentIndex.current = (currentIndex.current + 1) % 5;
+
+
+
+        size.setValue(0); // Reset the size to 0 before starting the animation
+        Animated.timing(size, {
+            toValue: 100, // Final size
+            duration: 500, // Duration of animation in milliseconds
+            useNativeDriver: false, // Animating styles
+        }).start();
+
+
+        animations.forEach((_, i) => animateView(i));
+        setCR(numbers[0]);
+
         if (numbers.length === 0) {
             resetEverything();
-            return; // No numbers left
+        } else {
+            setNumbers(numbers.slice(1));
+            // console.log(numbers.slice(0, 1), numbers, "<--")
         }
-        const randomIndex = Math.floor(Math.random() * numbers.length); // Get a random index
-        const randomNumber = numbers[randomIndex]; // Get the number at that index
+
+    }, [ballNum]);
+
+
+    const getRandomNumber = () => {
+        const randomNumber = numbers[0]; // Get the number at that index
 
         // Remove the selected number from the array to avoid repetition
         const newNumbers = [...numbers];
-        newNumbers.splice(randomIndex, 1); // Remove the number at randomIndex
+        newNumbers.splice(0, 1); // Remove the number at randomIndex
+        console.log("new numbers", newNumbers)
         setNumbers(newNumbers); // Update the state with the new array
         setBallNum(prevBallNum => prevBallNum + 1);
         return randomNumber; // Return the random number
@@ -414,17 +422,20 @@ export default function Game() {
                         <View style={styles.resultConCon}>
                             {animations.map((animation, index) => (
                                 <View key={index} style={styles.movingResults}>
-                                    <Animated.View
-                                        style={[
-                                            styles.singleResultCon,
-                                            { transform: [{ translateX: animation }] },
-                                        ]}
-                                    >
-                                        <Text style={styles.numberText}>{resultNumbers[index]}</Text>
-                                        {renderImageBasedOnResult(resultNumbers[index])}
-                                    </Animated.View>
+                                    {resultNumbers[index] !== 0 && (
+                                        <Animated.View
+                                            style={[
+                                                styles.singleResultCon,
+                                                { transform: [{ translateX: animation }] },
+                                            ]}
+                                        >
+                                            <Text style={styles.numberText}>{resultNumbers[index]}</Text>
+                                            {renderImageBasedOnResult(resultNumbers[index])}
+                                        </Animated.View>
+                                    )}
                                 </View>
                             ))}
+
                         </View>
                     </View>
                     {/* <View style={[styles.resultCon, styles.commn]}>
