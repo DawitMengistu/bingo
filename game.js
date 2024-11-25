@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Image, Modal, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Audio } from 'expo-av';
 
 
@@ -183,6 +183,14 @@ export default function Game() {
             default:
                 imageSource = require("./assets/gy.png");
         }
+
+        switch (item.on) {
+            case 1:
+                imageSource = require("./assets/out.png");
+                break;
+
+        }
+
         return <Image source={imageSource} style={styles.singleNumImg} />
     };
 
@@ -276,6 +284,12 @@ export default function Game() {
 
         gameBallRef.current = getImageSource(numbers[0]);
 
+        setNumberData((prevData) =>
+            prevData.map((item) =>
+                item.num === numbers[0] ? { ...item, on: 1 } : item
+            )
+        );
+
 
         setResultNumbers(prev => {
             const updatedResult = [...prev];
@@ -337,7 +351,7 @@ export default function Game() {
 
     const NumberItem = React.memo(({ item }) => (
         <View style={styles.singleNumCon}>
-            <Text style={styles.numberText}>{item.num}</Text>
+            <Text style={[styles.numberText,]}>{item.num}</Text>
             {renderImageBasedOnState(item)}
         </View>
     ));
@@ -631,6 +645,9 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "700",
         top: 11,
+    },
+    numberTextOn: {
+        color: "white"
     },
     singleBingoLetterCon: {
         flex: 0.4,
